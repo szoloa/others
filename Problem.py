@@ -21,18 +21,18 @@ class Problems:
             CREATE TABLE IF NOT EXISTS problems (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 type INTEGER DEFAULT 0,
-                content TEXT NOT NULL,
-                choise TEXT DEFAULT 'null',
-                answner TEXT DEFAULT 'null',
-                resolve TEXT DEFAULT 'null'
+                stem TEXT NOT NULL,
+                options TEXT DEFAULT 'null',
+                answer TEXT DEFAULT 'null',
+                analysis TEXT DEFAULT 'null'
             )
         ''')
         self.connect.commit()
 
-    def addProblem(self, content, choise='null', answner='null', resolve='null', TYPE=0):
+    def addProblem(self, stem, options='null', answer='null', analysis='null', TYPE=0):
         self.cursor.execute(
-                'INSERT INTO problems (type, content, choise, answner, resolve) VALUES (?, ?, ?, ?, ?)',
-                (TYPE, content, choise, answner, resolve)
+                'INSERT INTO problems (type, stem, options, answer, analysis) VALUES (?, ?, ?, ?, ?)',
+                (TYPE, stem, options, answer, analysis)
             )
         self.connect.commit()
     
@@ -54,20 +54,20 @@ class Problems:
             print('this content is not null')
             
     def getProblem(self, id):
-        self.cursor.execute('select type,content,choise from problems where id = ?',(id,))
+        self.cursor.execute('select type, stem, options from problems where id = ?',(id,))
         result = self.cursor.fetchone()
         print('type:', types[result[0]])
-        print('content:', result[1])
+        print('stem:', result[1])
         if result[0] == 1:
             chioses = json.loads(result[2])
             for key,name in chioses.items():
                 print(f'{key}: {name}')
 
     def getResolve(self, id):
-        self.cursor.execute('select answner, resolve from problems where id = ?',(id,))
+        self.cursor.execute('select answer, analysis from problems where id = ?',(id,))
         result = self.cursor.fetchone()
-        print('answner:', result[0])
-        print('resolve:', result[1])
+        print('answer:', result[0])
+        print('analysis:', result[1])
 
     def close(self):
         self.connect.close()
