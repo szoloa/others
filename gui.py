@@ -8,12 +8,10 @@ from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
 from PyQt5.QtCore import Qt, QSize
 from PyQt5.QtGui import QFont, QPalette, QColor
 import random
+from Problem import Problems
 
 # 选项字母
 LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G']
-
-
-
 
 class ProblemWidget(QWidget):
     """题目显示组件"""
@@ -21,6 +19,8 @@ class ProblemWidget(QWidget):
         super().__init__(parent)
         self.current_problem = None
         self.user_answer = None
+        self.font = QFont("Arial", 14)
+        self.setFont(self.font)
         self.init_ui()
         
     def init_ui(self):
@@ -28,13 +28,11 @@ class ProblemWidget(QWidget):
         
         # 题目类型和ID
         self.type_label = QLabel("")
-        self.type_label.setFont(QFont("Arial", 14))
         layout.addWidget(self.type_label)
         
         # 题目内容
         self.stem_text = QTextEdit()
         self.stem_text.setReadOnly(True)
-        self.stem_text.setFont(QFont("Arial", 14))
         layout.addWidget(self.stem_text)
         
         # 选项区域
@@ -53,7 +51,6 @@ class ProblemWidget(QWidget):
             self.options_group.addButton(radio, i)
             label = QLabel("")
             label.setWordWrap(True)
-            label.setFont(QFont("Arial", 14))
             
             option_layout.addWidget(radio)
             option_layout.addWidget(label)
@@ -94,15 +91,9 @@ class ProblemWidget(QWidget):
         self.analysis_text.hide()
         
         # 设置题目类型
-        problem_type = problem['type']
-        type_text = {
-            0: "未知类型",
-            1: "选择题",
-            2: "判断题",
-            3: "简答题"
-        }.get(problem_type, "未知类型")
+        problem_type = problem['typeid']
         
-        self.type_label.setText(f"题目ID: {problem['id']} | 类型: {type_text} | 难度: {problem['difficulty']}")
+        self.type_label.setText(f"题目ID: {problem['id']} | 类型: {problem['type']} | 难度: {problem['difficulty']}")
         
         # 设置题目内容
         self.stem_text.setPlainText(problem['stem'])
@@ -138,17 +129,17 @@ class ProblemWidget(QWidget):
                 self.analysis_text.show()
     
     def check_answer(self):
+        letter = ['A', 'B', 'C', 'D', 'E', 'F', 'G']
         if not self.current_problem or self.user_answer is None:
             return None, "请先选择答案"
         
         correct_answer = self.current_problem['answer']
-        is_correct = (self.user_answer.upper() == correct_answer.upper())
+        is_correct = (self.user_answer.upper() == letter[int(correct_answer)])
         
         if is_correct:
             return True, "回答正确！"
         else:
-            return False, f"回答错误！正确答案是: {correct_answer}"
-
+            return False, f"回答错误！正确答案是: {letter[int(correct_answer)]}"
 
 class ProblemManager(QWidget):
     """题目管理组件"""
@@ -156,6 +147,8 @@ class ProblemManager(QWidget):
         super().__init__(parent)
         self.db_manager = db_manager
         self.current_problem_id = None
+        self.font = QFont("Arial", 14)
+        self.setFont(self.font)
         self.init_ui()
         
     def init_ui(self):
@@ -182,7 +175,7 @@ class ProblemManager(QWidget):
         type_layout = QHBoxLayout()
         type_layout.addWidget(QLabel("题目类型:"))
         self.type_combo = QComboBox()
-        self.type_combo.addItems(["未知", "选择题", "判断题", "简答题"])
+        self.type_combo.addItems(["未知", "选择题", "判断题", "填空题", "名词解释" ,"简答题", "多选题", "实验题"])
         type_layout.addWidget(self.type_combo)
         type_layout.addStretch()
         right_layout.addLayout(type_layout)
@@ -280,7 +273,7 @@ class ProblemManager(QWidget):
                 self.load_problem(problems[row])
     
     def load_problem(self, problem):
-        # self.type_combo.setCurrentIndex(problem['type'])
+        self.type_combo.setCurrentIndex(problem['typeid'])
         self.stem_edit.setPlainText(problem['stem'])
         
         # 加载选项
@@ -391,6 +384,8 @@ class PracticeWidget(QWidget):
         super().__init__(parent)
         self.db_manager = db_manager
         self.problem_widget = ProblemWidget()
+        self.font = QFont("Arial", 14)
+        self.setFont(self.font)
         self.init_ui()
         
     def init_ui(self):
@@ -418,14 +413,17 @@ class PracticeWidget(QWidget):
         filter_layout.addWidget(QLabel("题库:"))
         self.bank_combo = QComboBox()
         self.bank_combo.addItem("所有题库", None)
-        self.bank_combo.addItem("题库1", 1)
-        self.bank_combo.addItem("题库2", 2)
+        self.bank_combo.addItem("分子生物学", 1)
+        self.bank_combo.addItem("普通生物学", 2)
+        self.bank_combo.addItem("生物化学", 3)
+        self.bank_combo.addItem("微生物学", 4)
+        self.bank_combo.addItem("细胞生物学", 5)
         filter_layout.addWidget(self.bank_combo)
         
         filter_layout.addWidget(QLabel("章节:"))
         self.chapter_combo = QComboBox()
         self.chapter_combo.addItem("所有章节", None)
-        for i in range(1, 11):
+        for i in range(0, 38):
             self.chapter_combo.addItem(f"第{i}章", i)
         filter_layout.addWidget(self.chapter_combo)
         
@@ -434,7 +432,11 @@ class PracticeWidget(QWidget):
         self.type_combo.addItem("所有类型", None)
         self.type_combo.addItem("选择题", 1)
         self.type_combo.addItem("判断题", 2)
-        self.type_combo.addItem("简答题", 3)
+        self.type_combo.addItem("填空题", 3)
+        self.type_combo.addItem("名词解释", 4)
+        self.type_combo.addItem("简答题", 5)
+        self.type_combo.addItem("多选题", 6)
+        self.type_combo.addItem("实验题", 7)
         filter_layout.addWidget(self.type_combo)
         
         filter_layout.addStretch()
@@ -473,6 +475,8 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.db_manager = Problems('ask.db')
+        self.font = QFont("Arial", 14)
+        self.setFont(self.font)
         self.init_ui()
         
     def init_ui(self):

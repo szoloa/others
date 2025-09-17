@@ -1,77 +1,10 @@
 import sqlite3
 import json
+import random
 # select id,  content,  choise,  answner,  resolve from problems
 # 0,no 1,select 2,judge 3,
 
 letter = ['A', 'B', 'C', 'D', 'E', 'F', 'G']
-
-class Problems:
-    def __init__(self, DB='problems.db'):
-        self.connect = sqlite3.connect(DB)
-        self.cursor = self.connect.cursor() 
-        self._create_table_if_not_exists()  # Ensure table exists
-    
-    def _create_table_if_not_exists(self):
-        """Create the problems table if it doesn't exist"""
-        self.cursor.execute('''
-            CREATE TABLE IF NOT EXISTS problems (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                type TEXT DEFAULT NULL,
-                stem TEXT,
-                options TEXT DEFAULT NULL,
-                answer TEXT DEFAULT NULL,
-                analysis TEXT DEFAULT NULL,
-                capter INTEGER DEFAULT 0,
-                bankid INTEGER DEFAULT 0
-            )
-        ''')
-        self.connect.commit()
-
-    def addProblem(self, stem, options=None, answer=None, analysis=None, TYPE=None, bankid=0, capter=0):
-        self.cursor.execute(
-                'INSERT INTO problems (type, stem, options, answer, analysis, capter, bankid) VALUES (?, ?, ?, ?, ?, ?, ?)',
-                (TYPE, stem, options, answer, analysis, capter, bankid)
-            )
-        self.connect.commit()
-    
-    def setContent(self, id, content, source, force=False):
-        self.cursor.execute(f'select {content} from problems where id = ? ', (id,))
-        Fetchone = self.cursor.fetchone()
-        if Fetchone:
-            content_ = Fetchone[0]
-        else:
-            content_ = 0
-
-        if content_ == None or force:
-            self.cursor.execute(
-                f'Update problems set {content} = ? where id = ?',
-                (source, id)
-            )
-            self.connect.commit()
-        else:
-            print('this content is not null')
-            
-    def getProblem(self, id):
-        self.cursor.execute('select type, stem, options from problems where id = ?',(id,))
-        result = self.cursor.fetchone()
-        print('type:', result[0])
-        print('stem:', result[1])
-        if eval(result[2]):
-            print('options:')
-            for i,j in enumerate(eval(result[2])):
-                print(f'{letter[i]}: {j}')
-
-    def getResolve(self, id):
-        self.cursor.execute('select answer, analysis from problems where id = ?',(id,))
-        result = self.cursor.fetchone()
-        print('answer:', result[0])
-        print('analysis:', result[1])
-
-    def close(self):
-        self.connect.close()
-if __name__ == '__main__':
-    p = Problems('ask.db')
-    p.getProblem(1322)
 
 class Problems:
     def __init__(self, DB='ask.db'):
@@ -91,23 +24,24 @@ class Problems:
                 analysis TEXT DEFAULT NULL,
                 chapter INTEGER DEFAULT 0,
                 bankid INTEGER DEFAULT 0,
-                difficulty INTEGER DEFAULT 1
+                difficulty INTEGER DEFAULT 1,
+                typeid INTEGER DEFAULT 0
             )
         ''')
         self.connect.commit()
 
     def add_problem(self, stem, options=None, answer=None, analysis=None, 
-                   problem_type=1, bankid=0, chapter=0, difficulty=1):
+                   problem_type=1, bankid=0, chapter=0, difficulty=1, typeid=0):
         """添加题目"""
         self.cursor.execute(
-            'INSERT INTO problems (type, stem, options, answer, analysis, chapter, bankid, difficulty) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-            (problem_type, stem, options, answer, analysis, chapter, bankid, difficulty)
+            'INSERT INTO problems (type, stem, options, answer, analysis, chapter, bankid, difficulty, typeid) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            (problem_type, stem, options, answer, analysis, chapter, bankid, difficulty, typeid)
         )
         self.connect.commit()
         return self.cursor.lastrowid
     
     def update_problem(self, id, stem=None, options=None, answer=None, analysis=None, 
-                      problem_type=None, bankid=None, chapter=None, difficulty=None):
+                      problem_type=None, bankid=None, chapter=None, difficulty=None, typeid=None):
         """更新题目"""
         # 构建更新语句
         update_fields = []
@@ -137,6 +71,9 @@ class Problems:
         if difficulty is not None:
             update_fields.append("difficulty = ?")
             update_values.append(difficulty)
+        if typeid is not None:
+            update_fields.append("typeid = ?")
+            update_values.append(typeid)
             
         if update_fields:
             update_values.append(id)
@@ -153,7 +90,7 @@ class Problems:
     
     def get_problem(self, id):
         """获取题目"""
-        self.cursor.execute('SELECT type, stem, options, answer, analysis, chapter, bankid, difficulty FROM problems WHERE id = ?', (id,))
+        self.cursor.execute('SELECT type, stem, options, answer, analysis, chapter, bankid, difficulty, typeid FROM problems WHERE id = ?', (id,))
         result = self.cursor.fetchone()
         if result:
             return {
@@ -165,13 +102,14 @@ class Problems:
                 'analysis': result[4],
                 'chapter': result[5],
                 'bankid': result[6],
-                'difficulty': result[7]
+                'difficulty': result[7],
+                'typeid': result[8]
             }
         return None
     
     def get_all_problems(self, bankid=None, chapter=None, problem_type=None):
         """获取所有题目"""
-        query = 'SELECT id, type, stem, options, answer, analysis, chapter, bankid, difficulty FROM problems'
+        query = 'SELECT id, type, stem, options, answer, analysis, chapter, bankid, difficulty, typeid FROM problems'
         conditions = []
         params = []
         
@@ -182,7 +120,7 @@ class Problems:
             conditions.append("chapter = ?")
             params.append(chapter)
         if problem_type is not None:
-            conditions.append("type = ?")
+            conditions.append("typeid = ?")
             params.append(problem_type)
             
         if conditions:
@@ -202,7 +140,8 @@ class Problems:
                 'analysis': result[5],
                 'chapter': result[6],
                 'bankid': result[7],
-                'difficulty': result[8]
+                'difficulty': result[8],
+                'typeid': result[9],
             })
         return problems
     
@@ -212,6 +151,7 @@ class Problems:
         if problems:
             return random.choice(problems)
         return None
-    
+
     def close(self):
         self.connect.close()
+
