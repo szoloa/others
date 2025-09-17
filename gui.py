@@ -10,6 +10,8 @@ from PyQt5.QtGui import QFont, QPalette, QColor
 import random
 from Problem import Problems
 
+from bs4 import BeautifulSoup as soup
+
 # 选项字母
 LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G']
 
@@ -112,20 +114,27 @@ class ProblemWidget(QWidget):
         
         # 判断题特殊处理
         if problem_type == 2:  # 判断题
-            self.option_widgets[0][1].setText("正确")
-            self.option_widgets[1][1].setText("错误")
+            self.option_widgets[0][1].setText("错误")
+            self.option_widgets[1][1].setText("正确")
+            self.option_widgets[0][0].show()
+            self.option_widgets[1][1].show()
+            self.option_widgets[0][1].show()
+            self.option_widgets[1][0].show()
             for i in range(2, 7):
                 self.option_widgets[i][0].hide()
                 self.option_widgets[i][1].hide()
     
     def show_answer(self):
         if self.current_problem:
-            correct_answer = self.current_problem['answer']
+            if self.current_problem['typeid'] == 3:
+                correct_answer = " ".join(eval(self.current_problem['answer']))
+            else:
+                correct_answer = self.current_problem['answer']
             self.answer_label.setText(f"正确答案: {correct_answer}")
             self.answer_label.show()
             
             if self.current_problem['analysis']:
-                self.analysis_text.setPlainText(self.current_problem['analysis'])
+                self.analysis_text.setPlainText(soup(self.current_problem['analysis'],'lxml').text)
                 self.analysis_text.show()
     
     def check_answer(self):
@@ -518,7 +527,6 @@ class MainWindow(QMainWindow):
     def closeEvent(self, event):
         self.db_manager.close()
         event.accept()
-
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
