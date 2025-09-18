@@ -1,20 +1,20 @@
 import json
 from bs4 import BeautifulSoup as soup
-from Problem import Problems
+from Question import Questions
 
 import pathlib
 import os
 import re
 
 def fun(content, capter, TYPE, bankid):
-    p = Problems('ask.db')
+    p = Questions('ask.db')
 
     for i in content['data']['questions']:
         stem = soup(i['stem'], 'lxml').text
         options = str([soup(i, 'lxml').text.replace('\n','') for i in i['options']])
         answer = str(i['answer'][0]) if i['answer'] else None
         analysis = str(soup(i['analysis'],'lxml'))
-        p.addProblem(stem=stem, options=options, answer=answer, analysis=analysis, TYPE=TYPE, capter=capter, bankid=bankid)
+        p.addquestion(stem=stem, options=options, answer=answer, analysis=analysis, TYPE=TYPE, capter=capter, bankid=bankid)
 
     p.close()
 

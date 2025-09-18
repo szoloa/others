@@ -8,21 +8,424 @@ from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
 from PyQt5.QtCore import Qt, QSize
 from PyQt5.QtGui import QFont, QPalette, QColor
 import random
-from Problem import Problems
+from Question import Questions
 
 from bs4 import BeautifulSoup as soup
 
 # 选项字母
 LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G']
 
-class ProblemWidget(QWidget):
+import sqlite3
+import json
+import sys
+import random
+from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
+                             QHBoxLayout, QLabel, QLineEdit, QPushButton, QFrame,
+                             QTextEdit, QRadioButton, QButtonGroup, QMessageBox,
+                             QSpinBox, QComboBox, QTabWidget, QListWidget, QSplitter,
+                             QGroupBox, QCheckBox, QFileDialog, QProgressBar)
+from PyQt5.QtCore import Qt, QSize
+from PyQt5.QtGui import QFont, QPalette, QColor, QTextDocument, QTextCursor
+from PyQt5.QtPrintSupport import QPrintDialog, QPrinter
+import html
+
+# 选项字母
+LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G']
+
+class PaperGenerator(QWidget):
+    """试卷生成组件"""
+    def __init__(self, db_manager, parent=None):
+        super().__init__(parent)
+        self.db_manager = db_manager
+        self.generated_paper = []  # 存储生成的试卷题目
+        self.init_ui()
+        
+    def init_ui(self):
+        layout = QVBoxLayout(self)
+        
+        # 试卷设置区域
+        settings_group = QGroupBox("试卷设置")
+        settings_layout = QVBoxLayout(settings_group)
+        
+        # 试卷标题
+        title_layout = QHBoxLayout()
+        title_layout.addWidget(QLabel("试卷标题:"))
+        self.title_edit = QLineEdit("模拟考试试卷")
+        title_layout.addWidget(self.title_edit)
+        settings_layout.addLayout(title_layout)
+        
+        # 题目数量设置
+        count_layout = QHBoxLayout()
+        count_layout.addWidget(QLabel("选择题数量:"))
+        self.choice_count = QSpinBox()
+        self.choice_count.setRange(0, 100)
+        self.choice_count.setValue(20)
+        count_layout.addWidget(self.choice_count)
+        
+        count_layout.addWidget(QLabel("判断题数量:"))
+        self.judge_count = QSpinBox()
+        self.judge_count.setRange(0, 100)
+        self.judge_count.setValue(10)
+        count_layout.addWidget(self.judge_count)
+        
+        count_layout.addWidget(QLabel("简答题数量:"))
+        self.short_answer_count = QSpinBox()
+        self.short_answer_count.setRange(0, 100)
+        self.short_answer_count.setValue(5)
+        count_layout.addWidget(self.short_answer_count)
+        
+        settings_layout.addLayout(count_layout)
+        
+        # 难度设置
+        difficulty_layout = QHBoxLayout()
+        difficulty_layout.addWidget(QLabel("难度范围:"))
+        self.min_difficulty = QSpinBox()
+        self.min_difficulty.setRange(0, 5)
+        self.min_difficulty.setValue(0)
+        difficulty_layout.addWidget(self.min_difficulty)
+        
+        difficulty_layout.addWidget(QLabel("到"))
+        self.max_difficulty = QSpinBox()
+        self.max_difficulty.setRange(0, 5)
+        self.max_difficulty.setValue(5)
+        difficulty_layout.addWidget(self.max_difficulty)
+        
+        settings_layout.addLayout(difficulty_layout)
+        
+        # 章节和题库筛选
+        filter_layout = QHBoxLayout()
+        filter_layout.addWidget(QLabel("题库:"))
+        self.bank_combo = QComboBox()
+        self.bank_combo.addItem("所有题库", None)
+        self.bank_combo.addItem("分子生物学", 1)
+        self.bank_combo.addItem("普通生物学", 2)
+        self.bank_combo.addItem("生物化学", 3)
+        self.bank_combo.addItem("微生物学", 4)
+        self.bank_combo.addItem("细胞生物学", 5)
+        filter_layout.addWidget(self.bank_combo)
+        
+        filter_layout.addWidget(QLabel("章节:"))
+        self.chapter_combo = QComboBox()
+        self.chapter_combo.addItem("所有章节", None)
+        for i in range(0, 38):
+            self.chapter_combo.addItem(f"第{i}章", i)
+        filter_layout.addWidget(self.chapter_combo)
+        
+        settings_layout.addLayout(filter_layout)
+        
+        # 是否包含解析
+        self.include_analysis = QCheckBox("包含解析")
+        self.include_analysis.setChecked(False)
+        settings_layout.addWidget(self.include_analysis)
+        
+        # 是否随机排序
+        self.random_order = QCheckBox("随机排序题目")
+        self.random_order.setChecked(True)
+        settings_layout.addWidget(self.random_order)
+        
+        layout.addWidget(settings_group)
+        
+        # 按钮区域
+        button_layout = QHBoxLayout()
+        
+        self.generate_btn = QPushButton("生成试卷")
+        self.generate_btn.clicked.connect(self.generate_paper)
+        button_layout.addWidget(self.generate_btn)
+        
+        self.preview_btn = QPushButton("预览试卷")
+        self.preview_btn.clicked.connect(self.preview_paper)
+        self.preview_btn.setEnabled(False)
+        button_layout.addWidget(self.preview_btn)
+        
+        self.export_btn = QPushButton("导出试卷")
+        self.export_btn.clicked.connect(self.export_paper)
+        self.export_btn.setEnabled(False)
+        button_layout.addWidget(self.export_btn)
+        
+        self.print_btn = QPushButton("打印试卷")
+        self.print_btn.clicked.connect(self.print_paper)
+        self.print_btn.setEnabled(False)
+        button_layout.addWidget(self.print_btn)
+        
+        layout.addLayout(button_layout)
+        
+        # 进度条
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setVisible(False)
+        layout.addWidget(self.progress_bar)
+        
+        # 试卷预览区域
+        self.preview_text = QTextEdit()
+        self.preview_text.setReadOnly(True)
+        layout.addWidget(self.preview_text)
+        
+    def generate_paper(self):
+        """生成试卷"""
+        # 获取设置
+        choice_count = self.choice_count.value()
+        judge_count = self.judge_count.value()
+        short_answer_count = self.short_answer_count.value()
+        min_difficulty = self.min_difficulty.value()
+        max_difficulty = self.max_difficulty.value()
+        bankid = self.bank_combo.currentData()
+        chapter = self.chapter_combo.currentData()
+        
+        # 显示进度条
+        self.progress_bar.setVisible(True)
+        self.progress_bar.setRange(0, choice_count + judge_count + short_answer_count)
+        self.progress_bar.setValue(0)
+        
+        # 清空之前的试卷
+        self.generated_paper = []
+        
+        # 获取所有符合条件的题目
+        all_questions = self.db_manager.get_all_questions(
+            bankid=bankid, 
+            chapter=chapter
+        )
+        
+        # 按类型和难度筛选
+        choice_problems = [
+            p for p in all_questions 
+            if p['typeid'] == 1 and min_difficulty <= p['difficulty'] <= max_difficulty
+        ]
+        
+        judge_problems = [
+            p for p in all_questions 
+            if p['typeid'] == 2 and min_difficulty <= p['difficulty'] <= max_difficulty
+        ]
+        
+        short_answer_problems = [
+            p for p in all_questions 
+            if p['typeid'] == 3 and min_difficulty <= p['difficulty'] <= max_difficulty
+        ]
+        
+        # 检查题目数量是否足够
+        if len(choice_problems) < choice_count:
+            QMessageBox.warning(self, "警告", 
+                               f"选择题数量不足。需要 {choice_count} 道，但只有 {len(choice_problems)} 道可用。")
+            choice_count = len(choice_problems)
+            
+        if len(judge_problems) < judge_count:
+            QMessageBox.warning(self, "警告", 
+                               f"判断题数量不足。需要 {judge_count} 道，但只有 {len(judge_problems)} 道可用。")
+            judge_count = len(judge_problems)
+            
+        if len(short_answer_problems) < short_answer_count:
+            QMessageBox.warning(self, "警告", 
+                               f"简答题数量不足。需要 {short_answer_count} 道，但只有 {len(short_answer_problems)} 道可用。")
+            short_answer_count = len(short_answer_problems)
+        
+        # 随机选择题目
+        if choice_count > 0:
+            selected_choices = random.sample(choice_problems, choice_count)
+            self.generated_paper.extend(selected_choices)
+            self.progress_bar.setValue(choice_count)
+            
+        if judge_count > 0:
+            selected_judges = random.sample(judge_problems, judge_count)
+            self.generated_paper.extend(selected_judges)
+            self.progress_bar.setValue(choice_count + judge_count)
+            
+        if short_answer_count > 0:
+            selected_short_answers = random.sample(short_answer_problems, short_answer_count)
+            self.generated_paper.extend(selected_short_answers)
+            self.progress_bar.setValue(choice_count + judge_count + short_answer_count)
+        
+        # 随机排序
+        if self.random_order.isChecked():
+            random.shuffle(self.generated_paper)
+        
+        # 启用按钮
+        self.preview_btn.setEnabled(True)
+        self.export_btn.setEnabled(True)
+        self.print_btn.setEnabled(True)
+        
+        # 隐藏进度条
+        self.progress_bar.setVisible(False)
+        
+        QMessageBox.information(self, "成功", f"试卷生成完成！共 {len(self.generated_paper)} 道题目。")
+        self.preview_paper()
+    
+    def preview_paper(self):
+        """预览试卷"""
+        if not self.generated_paper:
+            QMessageBox.warning(self, "警告", "请先生成试卷")
+            return
+            
+        # 生成HTML格式的试卷
+        html_content = self.generate_html_paper()
+        self.preview_text.setHtml(html_content)
+    
+    def generate_html_paper(self):
+        """生成HTML格式的试卷内容"""
+        title = self.title_edit.text()
+        include_analysis = self.include_analysis.isChecked()
+        
+        html_content = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <title>{html.escape(title)}</title>
+            <style>
+                body {{ font-family: Arial, sans-serif; margin: 20px; }}
+                h1 {{ text-align: center; color: #2c3e50; }}
+                .question {{ margin-bottom: 20px; border-bottom: 1px solid #eee; padding-bottom: 10px; }}
+                .question-number {{ font-weight: bold; color: #3498db; }}
+                .options {{ margin-left: 20px; }}
+                .option {{ margin-bottom: 5px; }}
+                .answer {{ color: #27ae60; font-weight: bold; margin-top: 5px; }}
+                .analysis {{ color: #7f8c8d; font-style: italic; margin-top: 5px; }}
+                .section {{ margin-top: 30px; }}
+            </style>
+        </head>
+        <body>
+            <h1>{html.escape(title)}</h1>
+        """
+        
+        # 按题型分组
+        choice_questions = [q for q in self.generated_paper if q['typeid'] == 1]
+        judge_questions = [q for q in self.generated_paper if q['typeid'] == 2]
+        short_answer_questions = [q for q in self.generated_paper if q['typeid'] == 3]
+        
+        # 添加选择题
+        if choice_questions:
+            html_content += '<div class="section"><h2>一、选择题</h2>'
+            for i, question in enumerate(choice_questions, 1):
+                html_content += f'<div class="question">'
+                html_content += f'<div class="question-number">{i}.</div>'
+                html_content += f'<div class="stem">{html.escape(question["stem"])}</div>'
+                
+                html_content += '<div class="options">'
+                for j, option in enumerate(question['options']):
+                    html_content += f'<div class="option">{LETTERS[j]}. {html.escape(option)}</div>'
+                html_content += '</div>'
+                
+                if include_analysis:
+                    html_content += f'<div class="answer">答案: {html.escape(question["answer"])}</div>'
+                    if question['analysis']:
+                        html_content += f'<div class="analysis">解析: {html.escape(question["analysis"])}</div>'
+                
+                html_content += '</div>'
+            html_content += '</div>'
+        
+        # 添加判断题
+        if judge_questions:
+            html_content += '<div class="section"><h2>二、判断题</h2>'
+            for i, question in enumerate(judge_questions, 1):
+                html_content += f'<div class="question">'
+                html_content += f'<div class="question-number">{i}.</div>'
+                html_content += f'<div class="stem">{html.escape(question["stem"])}</div>'
+                
+                if include_analysis:
+                    html_content += f'<div class="answer">答案: {html.escape(question["answer"])}</div>'
+                    if question['analysis']:
+                        html_content += f'<div class="analysis">解析: {html.escape(question["analysis"])}</div>'
+                
+                html_content += '</div>'
+            html_content += '</div>'
+        
+        # 添加简答题
+        if short_answer_questions:
+            html_content += '<div class="section"><h2>三、简答题</h2>'
+            for i, question in enumerate(short_answer_questions, 1):
+                html_content += f'<div class="question">'
+                html_content += f'<div class="question-number">{i}.</div>'
+                html_content += f'<div class="stem">{html.escape(question["stem"])}</div>'
+                
+                if include_analysis:
+                    html_content += f'<div class="answer">答案: {html.escape(question["answer"])}</div>'
+                    if question['analysis']:
+                        html_content += f'<div class="analysis">解析: {html.escape(question["analysis"])}</div>'
+                
+                html_content += '</div>'
+            html_content += '</div>'
+        
+        html_content += """
+        </body>
+        </html>
+        """
+        
+        return html_content
+    
+    def export_paper(self):
+        """导出试卷到文件"""
+        if not self.generated_paper:
+            QMessageBox.warning(self, "警告", "请先生成试卷")
+            return
+            
+        file_path, _ = QFileDialog.getSaveFileName(
+            self, "保存试卷", "", "HTML文件 (*.html);;文本文件 (*.txt)"
+        )
+        
+        if not file_path:
+            return
+            
+        try:
+            if file_path.endswith('.html'):
+                html_content = self.generate_html_paper()
+                with open(file_path, 'w', encoding='utf-8') as f:
+                    f.write(html_content)
+            else:
+                # 生成纯文本格式
+                with open(file_path, 'w', encoding='utf-8') as f:
+                    f.write(self.title_edit.text() + "\n")
+                    f.write("=" * 50 + "\n\n")
+                    
+                    # 按题型分组
+                    choice_questions = [q for q in self.generated_paper if q['type'] == 1]
+                    judge_questions = [q for q in self.generated_paper if q['type'] == 2]
+                    short_answer_questions = [q for q in self.generated_paper if q['type'] == 3]
+                    
+                    # 添加选择题
+                    if choice_questions:
+                        f.write("一、选择题\n")
+                        for i, question in enumerate(choice_questions, 1):
+                            f.write(f"{i}. {question['stem']}\n")
+                            for j, option in enumerate(question['options']):
+                                f.write(f"   {LETTERS[j]}. {option}\n")
+                            f.write("\n")
+                    
+                    # 添加判断题
+                    if judge_questions:
+                        f.write("二、判断题\n")
+                        for i, question in enumerate(judge_questions, 1):
+                            f.write(f"{i}. {question['stem']}\n\n")
+                    
+                    # 添加简答题
+                    if short_answer_questions:
+                        f.write("三、简答题\n")
+                        for i, question in enumerate(short_answer_questions, 1):
+                            f.write(f"{i}. {question['stem']}\n\n")
+            
+            QMessageBox.information(self, "成功", "试卷导出成功！")
+        except Exception as e:
+            QMessageBox.critical(self, "错误", f"导出失败: {str(e)}")
+    
+    def print_paper(self):
+        """打印试卷"""
+        if not self.generated_paper:
+            QMessageBox.warning(self, "警告", "请先生成试卷")
+            return
+            
+        printer = QPrinter(QPrinter.HighResolution)
+        dialog = QPrintDialog(printer, self)
+        
+        if dialog.exec_() == QPrintDialog.Accepted:
+            # 创建文档并打印
+            document = QTextDocument()
+            document.setHtml(self.generate_html_paper())
+            document.print_(printer)
+
+
+
+class questionWidget(QWidget):
     """题目显示组件"""
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.current_problem = None
+        self.current_question = None
         self.user_answer = None
-        self.font = QFont("Arial", 14)
-        self.setFont(self.font)
         self.init_ui()
         
     def init_ui(self):
@@ -80,8 +483,8 @@ class ProblemWidget(QWidget):
     def on_option_selected(self, button):
         self.user_answer = button.text()[0]  # 获取选项字母
     
-    def set_problem(self, problem):
-        self.current_problem = problem
+    def set_question(self, question):
+        self.current_question = question
         self.user_answer = None
         self.options_group.setExclusive(False)
         for radio, _ in self.option_widgets:
@@ -93,15 +496,15 @@ class ProblemWidget(QWidget):
         self.analysis_text.hide()
         
         # 设置题目类型
-        problem_type = problem['typeid']
+        question_type = question['typeid']
         
-        self.type_label.setText(f"题目ID: {problem['id']} | 类型: {problem['type']} | 难度: {problem['difficulty']}")
+        self.type_label.setText(f"题目ID: {question['id']} | 类型: {question['type']} | 难度: {question['difficulty']}")
         
         # 设置题目内容
-        self.stem_text.setPlainText(problem['stem'])
+        self.stem_text.setPlainText(question['stem'])
         
         # 设置选项
-        options = problem['options']
+        options = question['options']
         for i, (radio, label) in enumerate(self.option_widgets):
             if i < len(options):
                 radio.setText(LETTERS[i])
@@ -113,7 +516,7 @@ class ProblemWidget(QWidget):
                 label.hide()
         
         # 判断题特殊处理
-        if problem_type == 2:  # 判断题
+        if question_type == 2:  # 判断题
             self.option_widgets[0][1].setText("错误")
             self.option_widgets[1][1].setText("正确")
             self.option_widgets[0][0].show()
@@ -125,24 +528,31 @@ class ProblemWidget(QWidget):
                 self.option_widgets[i][1].hide()
     
     def show_answer(self):
-        if self.current_problem:
-            if self.current_problem['typeid'] == 3:
-                correct_answer = " ".join(eval(self.current_problem['answer']))
+        if self.current_question:
+            if self.current_question['typeid'] == 3:
+                correct_answer = " ".join(eval(self.current_question['answer']))
+                self.answer_label.setText(f"正确答案: {correct_answer}")
+            elif self.current_question['typeid'] == 2:
+                correct_answer = self.current_question['answer']
+                self.answer_label.setText(['错误','正确'][int(self.current_question['answer'])])
+            elif self.current_question['typeid'] == 1:
+                correct_answer = self.current_question['answer']
+                self.answer_label.setText(LETTERS[int(self.current_question['answer'])])
             else:
-                correct_answer = self.current_problem['answer']
-            self.answer_label.setText(f"正确答案: {correct_answer}")
+                correct_answer = self.current_question['answer']
+                self.answer_label.setText(f"正确答案: {correct_answer}")
             self.answer_label.show()
             
-            if self.current_problem['analysis']:
-                self.analysis_text.setPlainText(soup(self.current_problem['analysis'],'lxml').text)
+            if self.current_question['analysis']:
+                self.analysis_text.setPlainText(soup(self.current_question['analysis'],'lxml').text)
                 self.analysis_text.show()
     
     def check_answer(self):
         letter = ['A', 'B', 'C', 'D', 'E', 'F', 'G']
-        if not self.current_problem or self.user_answer is None:
+        if not self.current_question or self.user_answer is None:
             return None, "请先选择答案"
         
-        correct_answer = self.current_problem['answer']
+        correct_answer = self.current_question['answer']
         is_correct = (self.user_answer.upper() == letter[int(correct_answer)])
         
         if is_correct:
@@ -150,14 +560,12 @@ class ProblemWidget(QWidget):
         else:
             return False, f"回答错误！正确答案是: {letter[int(correct_answer)]}"
 
-class ProblemManager(QWidget):
+class questionManager(QWidget):
     """题目管理组件"""
     def __init__(self, db_manager, parent=None):
         super().__init__(parent)
         self.db_manager = db_manager
-        self.current_problem_id = None
-        self.font = QFont("Arial", 14)
-        self.setFont(self.font)
+        self.current_question_id = None
         self.init_ui()
         
     def init_ui(self):
@@ -167,10 +575,10 @@ class ProblemManager(QWidget):
         left_widget = QWidget()
         left_layout = QVBoxLayout(left_widget)
         
-        self.problem_list = QListWidget()
-        self.problem_list.currentRowChanged.connect(self.on_problem_selected)
+        self.question_list = QListWidget()
+        self.question_list.currentRowChanged.connect(self.on_question_selected)
         left_layout.addWidget(QLabel("题目列表:"))
-        left_layout.addWidget(self.problem_list)
+        left_layout.addWidget(self.question_list)
         
         refresh_btn = QPushButton("刷新列表")
         refresh_btn.clicked.connect(self.refresh_list)
@@ -243,15 +651,15 @@ class ProblemManager(QWidget):
         # 按钮区域
         button_layout = QHBoxLayout()
         self.new_btn = QPushButton("新建")
-        self.new_btn.clicked.connect(self.new_problem)
+        self.new_btn.clicked.connect(self.new_question)
         button_layout.addWidget(self.new_btn)
         
         self.save_btn = QPushButton("保存")
-        self.save_btn.clicked.connect(self.save_problem)
+        self.save_btn.clicked.connect(self.save_question)
         button_layout.addWidget(self.save_btn)
         
         self.delete_btn = QPushButton("删除")
-        self.delete_btn.clicked.connect(self.delete_problem)
+        self.delete_btn.clicked.connect(self.delete_question)
         button_layout.addWidget(self.delete_btn)
         
         right_layout.addLayout(button_layout)
@@ -268,39 +676,39 @@ class ProblemManager(QWidget):
         self.refresh_list()
     
     def refresh_list(self):
-        self.problem_list.clear()
-        problems = self.db_manager.get_all_problems()
-        for problem in problems:
-            stem_preview = problem['stem'][:10] if problem['stem'] else 'Cant Preview'
-            self.problem_list.addItem(f"{problem['id']}: {stem_preview}")
+        self.question_list.clear()
+        questions = self.db_manager.get_all_questions()
+        for question in questions:
+            stem_preview = question['stem'][:10] if question['stem'] else 'Cant Preview'
+            self.question_list.addItem(f"{question['id']}: {stem_preview}")
     
-    def on_problem_selected(self, row):
+    def on_question_selected(self, row):
         if row >= 0:
-            problems = self.db_manager.get_all_problems()
-            if row < len(problems):
-                self.current_problem_id = problems[row]['id']
-                self.load_problem(problems[row])
+            questions = self.db_manager.get_all_questions()
+            if row < len(questions):
+                self.current_question_id = questions[row]['id']
+                self.load_question(questions[row])
     
-    def load_problem(self, problem):
-        self.type_combo.setCurrentIndex(problem['typeid'])
-        self.stem_edit.setPlainText(problem['stem'])
+    def load_question(self, question):
+        self.type_combo.setCurrentIndex(question['typeid'])
+        self.stem_edit.setPlainText(question['stem'])
         
         # 加载选项
-        options = problem['options']
+        options = question['options']
         for i, edit in enumerate(self.option_edits):
             if i < len(options):
                 edit.setText(options[i])
             else:
                 edit.setText("")
         
-        self.answer_edit.setText(problem['answer'] or "")
-        self.analysis_edit.setPlainText(problem['analysis'] or "")
-        self.difficulty_spin.setValue(problem['difficulty'])
-        self.chapter_spin.setValue(problem['chapter'])
-        self.bankid_spin.setValue(problem['bankid'])
+        self.answer_edit.setText(question['answer'] or "")
+        self.analysis_edit.setPlainText(question['analysis'] or "")
+        self.difficulty_spin.setValue(question['difficulty'])
+        self.chapter_spin.setValue(question['chapter'])
+        self.bankid_spin.setValue(question['bankid'])
     
-    def new_problem(self):
-        self.current_problem_id = None
+    def new_question(self):
+        self.current_question_id = None
         self.type_combo.setCurrentIndex(1)  # 默认选择题
         self.stem_edit.clear()
         for edit in self.option_edits:
@@ -311,9 +719,9 @@ class ProblemManager(QWidget):
         self.chapter_spin.setValue(0)
         self.bankid_spin.setValue(0)
     
-    def save_problem(self):
+    def save_question(self):
         # 收集数据
-        problem_type = self.type_combo.currentIndex()
+        question_type = self.type_combo.currentIndex()
         stem = self.stem_edit.toPlainText()
         
         # 收集选项
@@ -333,7 +741,7 @@ class ProblemManager(QWidget):
             QMessageBox.warning(self, "警告", "题目内容不能为空")
             return
         
-        if problem_type == 1 and not options:  # 选择题需要选项
+        if question_type == 1 and not options:  # 选择题需要选项
             QMessageBox.warning(self, "警告", "选择题需要至少一个选项")
             return
         
@@ -342,15 +750,15 @@ class ProblemManager(QWidget):
             return
         
         # 保存到数据库
-        if self.current_problem_id:
+        if self.current_question_id:
             # 更新现有题目
-            self.db_manager.update_problem(
-                self.current_problem_id,
+            self.db_manager.update_question(
+                self.current_question_id,
                 stem=stem,
                 options=json.dumps(options, ensure_ascii=False),
                 answer=answer,
                 analysis=analysis,
-                problem_type=problem_type,
+                question_type=question_type,
                 bankid=bankid,
                 chapter=chapter,
                 difficulty=difficulty
@@ -358,12 +766,12 @@ class ProblemManager(QWidget):
             QMessageBox.information(self, "成功", "题目更新成功")
         else:
             # 添加新题目
-            self.db_manager.add_problem(
+            self.db_manager.add_question(
                 stem=stem,
                 options=json.dumps(options, ensure_ascii=False),
                 answer=answer,
                 analysis=analysis,
-                problem_type=problem_type,
+                question_type=question_type,
                 bankid=bankid,
                 chapter=chapter,
                 difficulty=difficulty
@@ -373,17 +781,17 @@ class ProblemManager(QWidget):
         # 刷新列表
         self.refresh_list()
     
-    def delete_problem(self):
-        if not self.current_problem_id:
+    def delete_question(self):
+        if not self.current_question_id:
             QMessageBox.warning(self, "警告", "请先选择一个题目")
             return
         
         reply = QMessageBox.question(self, "确认", "确定要删除这个题目吗？", 
                                    QMessageBox.Yes | QMessageBox.No)
         if reply == QMessageBox.Yes:
-            self.db_manager.delete_problem(self.current_problem_id)
+            self.db_manager.delete_question(self.current_question_id)
             QMessageBox.information(self, "成功", "题目删除成功")
-            self.new_problem()
+            self.new_question()
             self.refresh_list()
 
 
@@ -392,9 +800,7 @@ class PracticeWidget(QWidget):
     def __init__(self, db_manager, parent=None):
         super().__init__(parent)
         self.db_manager = db_manager
-        self.problem_widget = ProblemWidget()
-        self.font = QFont("Arial", 14)
-        self.setFont(self.font)
+        self.question_widget = questionWidget()
         self.init_ui()
         
     def init_ui(self):
@@ -404,7 +810,7 @@ class PracticeWidget(QWidget):
         control_layout = QHBoxLayout()
         
         self.next_btn = QPushButton("下一题")
-        self.next_btn.clicked.connect(self.next_problem)
+        self.next_btn.clicked.connect(self.next_question)
         control_layout.addWidget(self.next_btn)
         
         self.check_btn = QPushButton("检查答案")
@@ -454,43 +860,42 @@ class PracticeWidget(QWidget):
         layout.addLayout(filter_layout)
         
         # 题目显示区域
-        layout.addWidget(self.problem_widget)
+        layout.addWidget(self.question_widget)
         
         # 初始加载一道题
-        self.next_problem()
+        self.next_question()
     
-    def next_problem(self):
+    def next_question(self):
         bankid = self.bank_combo.currentData()
         chapter = self.chapter_combo.currentData()
-        problem_type = self.type_combo.currentData()
+        question_type = self.type_combo.currentData()
         
-        problem = self.db_manager.get_random_problem(bankid, chapter, problem_type)
-        if problem:
-            self.problem_widget.set_problem(problem)
+        question = self.db_manager.get_random_question(bankid, chapter, question_type)
+        if question:
+            self.question_widget.set_question(question)
         else:
             QMessageBox.information(self, "提示", "没有找到符合条件的题目")
     
     def check_answer(self):
-        is_correct, message = self.problem_widget.check_answer()
+        is_correct, message = self.question_widget.check_answer()
         if is_correct is not None:
             QMessageBox.information(self, "结果", message)
     
     def show_answer(self):
-        self.problem_widget.show_answer()
+        self.question_widget.show_answer()
 
 
 class MainWindow(QMainWindow):
     """主窗口"""
     def __init__(self):
         super().__init__()
-        self.db_manager = Problems('ask.db')
-        self.font = QFont("Arial", 14)
-        self.setFont(self.font)
+        self.db_manager = Questions('ask.db')
         self.init_ui()
         
     def init_ui(self):
         self.setWindowTitle('刷题软件')
         self.setGeometry(100, 100, 1000, 700)
+        app.setStyleSheet("")
         
         # 设置样式
         self.setStyleSheet("""
@@ -510,6 +915,17 @@ class MainWindow(QMainWindow):
                 background-color: white;
                 border-bottom: none;
             }
+            QGroupBox {
+                font-weight: bold;
+                border: 1px solid #cccccc;
+                border-radius: 5px;
+                margin-top: 1ex;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 5px;
+            }
         """)
         
         # 创建标签页
@@ -521,15 +937,20 @@ class MainWindow(QMainWindow):
         self.tabs.addTab(self.practice_widget, "练习")
         
         # 管理页面
-        self.manage_widget = ProblemManager(self.db_manager)
+        self.manage_widget = questionManager(self.db_manager)
         self.tabs.addTab(self.manage_widget, "题目管理")
+
+        self.paper_widget = PaperGenerator(self.db_manager)
+        self.tabs.addTab(self.paper_widget, "试卷生成")
         
     def closeEvent(self, event):
         self.db_manager.close()
         event.accept()
-
+        
 if __name__ == '__main__':
     app = QApplication(sys.argv)
+    font = QFont("微软雅黑", 14)  # 你可以换成你喜欢的字体和字号
+    app.setFont(font)
     window = MainWindow()
     window.show()
     sys.exit(app.exec_())

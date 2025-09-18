@@ -1,11 +1,11 @@
 #!/bin/python
 
 import sys
-import Problem
+import Question
 
 def main(argv):
-    p = Problem.Problems()
-    p.addProblem(*argv)
+    p = Question.Questions()
+    p.addquestion(*argv)
     p.close()
 
 if __name__ == '__main__':
