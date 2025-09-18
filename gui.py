@@ -9,7 +9,7 @@ from PyQt5.QtCore import Qt, QSize
 from PyQt5.QtGui import QFont, QPalette, QColor
 import random
 from Question import Questions
-
+from PyQt5.QtWebEngineWidgets import QWebEngineView  # 导入Web引擎组件
 from bs4 import BeautifulSoup as soup
 
 # 选项字母
@@ -294,7 +294,7 @@ class PaperGenerator(QWidget):
             html_content += '<div class="section"><h2>一、选择题</h2>'
             for i, question in enumerate(choice_questions, 1):
                 html_content += f'<div class="question">'
-                html_content += f'<div class="question-number">{i}.</div>'
+                html_content += f'<div class="question-number">{i}. 题目ID {question["id"]}</div>'
                 html_content += f'<div class="stem">{html.escape(question["stem"])}</div>'
                 
                 html_content += '<div class="options">'
@@ -315,7 +315,7 @@ class PaperGenerator(QWidget):
             html_content += '<div class="section"><h2>二、判断题</h2>'
             for i, question in enumerate(judge_questions, 1):
                 html_content += f'<div class="question">'
-                html_content += f'<div class="question-number">{i}.</div>'
+                html_content += f'<div class="question-number">{i}. 题目ID {question["id"]}</div>'
                 html_content += f'<div class="stem">{html.escape(question["stem"])}</div>'
                 
                 if include_analysis:
@@ -331,7 +331,7 @@ class PaperGenerator(QWidget):
             html_content += '<div class="section"><h2>三、简答题</h2>'
             for i, question in enumerate(short_answer_questions, 1):
                 html_content += f'<div class="question">'
-                html_content += f'<div class="question-number">{i}.</div>'
+                html_content += f'<div class="question-number">{i}. 题目ID {question["id"]}</div>'
                 html_content += f'<div class="stem">{html.escape(question["stem"])}</div>'
                 
                 if include_analysis:
@@ -469,16 +469,14 @@ class questionWidget(QWidget):
         # 答案和解析
         self.answer_label = QLabel("")
         self.answer_label.setWordWrap(True)
-        self.answer_label.setFont(QFont("Arial", 14))
         self.answer_label.hide()
         
-        self.analysis_text = QTextEdit()
-        self.analysis_text.setReadOnly(True)
-        self.analysis_text.setFont(QFont("Arial", 14))
-        self.analysis_text.hide()
+        self.analysis_webview = QWebEngineView()
+        self.analysis_webview.hide()
+
         
         layout.addWidget(self.answer_label)
-        layout.addWidget(self.analysis_text)
+        layout.addWidget(self.analysis_webview)
         
     def on_option_selected(self, button):
         self.user_answer = button.text()[0]  # 获取选项字母
@@ -493,7 +491,7 @@ class questionWidget(QWidget):
         
         # 隐藏解析
         self.answer_label.hide()
-        self.analysis_text.hide()
+        self.analysis_webview.hide()
         
         # 设置题目类型
         question_type = question['typeid']
@@ -544,8 +542,8 @@ class questionWidget(QWidget):
             self.answer_label.show()
             
             if self.current_question['analysis']:
-                self.analysis_text.setPlainText(soup(self.current_question['analysis'],'lxml').text)
-                self.analysis_text.show()
+                self.analysis_webview.setHtml(self.current_question['analysis'])
+                self.analysis_webview.show()
     
     def check_answer(self):
         letter = ['A', 'B', 'C', 'D', 'E', 'F', 'G']
@@ -559,6 +557,7 @@ class questionWidget(QWidget):
             return True, "回答正确！"
         else:
             return False, f"回答错误！正确答案是: {letter[int(correct_answer)]}"
+        
 
 class questionManager(QWidget):
     """题目管理组件"""
