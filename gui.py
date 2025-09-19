@@ -68,12 +68,24 @@ class PaperGenerator(QWidget):
         self.judge_count.setValue(10)
         count_layout.addWidget(self.judge_count)
         
-        count_layout.addWidget(QLabel("简答题数量:"))
+        count_layout.addWidget(QLabel("填空题数量:"))
+        self.full_empty_count = QSpinBox()
+        self.full_empty_count.setRange(0, 100)
+        self.full_empty_count.setValue(5)
+        count_layout.addWidget(self.full_empty_count)
+
+        count_layout.addWidget(QLabel("名词解释数量:"))
+        self.name_explain_count = QSpinBox()
+        self.name_explain_count.setRange(0, 100)
+        self.name_explain_count.setValue(5)
+        count_layout.addWidget(self.name_explain_count)
+        
+        count_layout.addWidget(QLabel("论述题数量:"))
         self.short_answer_count = QSpinBox()
         self.short_answer_count.setRange(0, 100)
         self.short_answer_count.setValue(5)
         count_layout.addWidget(self.short_answer_count)
-        
+
         settings_layout.addLayout(count_layout)
         
         # 难度设置
@@ -164,6 +176,8 @@ class PaperGenerator(QWidget):
         # 获取设置
         choice_count = self.choice_count.value()
         judge_count = self.judge_count.value()
+        full_empty_count = self.full_empty_count.value()
+        name_explain_count = self.name_explain_count.value()
         short_answer_count = self.short_answer_count.value()
         min_difficulty = self.min_difficulty.value()
         max_difficulty = self.max_difficulty.value()
@@ -194,10 +208,17 @@ class PaperGenerator(QWidget):
             p for p in all_questions 
             if p['typeid'] == 2 and min_difficulty <= p['difficulty'] <= max_difficulty
         ]
-        
-        short_answer_problems = [
+        full_empty_problems = [
             p for p in all_questions 
             if p['typeid'] == 3 and min_difficulty <= p['difficulty'] <= max_difficulty
+        ]
+        name_explain_problems = [
+            p for p in all_questions 
+            if p['typeid'] == 4 and min_difficulty <= p['difficulty'] <= max_difficulty
+        ]
+        short_answer_problems = [
+            p for p in all_questions 
+            if p['typeid'] == 5 and min_difficulty <= p['difficulty'] <= max_difficulty
         ]
         
         # 检查题目数量是否足够
@@ -211,11 +232,22 @@ class PaperGenerator(QWidget):
                                f"判断题数量不足。需要 {judge_count} 道，但只有 {len(judge_problems)} 道可用。")
             judge_count = len(judge_problems)
             
+        if len(full_empty_problems) < full_empty_count:
+            QMessageBox.warning(self, "警告", 
+                               f"填空题数量不足。需要 {full_empty_count} 道，但只有 {len(full_empty_problems)} 道可用。")
+            full_empty_count = len(full_empty_problems)
+        
+        if len(name_explain_problems) < name_explain_count:
+            QMessageBox.warning(self, "警告", 
+                               f"名词解释数量不足。需要 {name_explain_count} 道，但只有 {len(name_explain_problems)} 道可用。")
+            name_explain_count = len(name_explain_problems)
+        
         if len(short_answer_problems) < short_answer_count:
             QMessageBox.warning(self, "警告", 
                                f"简答题数量不足。需要 {short_answer_count} 道，但只有 {len(short_answer_problems)} 道可用。")
             short_answer_count = len(short_answer_problems)
         
+
         # 随机选择题目
         if choice_count > 0:
             selected_choices = random.sample(choice_problems, choice_count)
@@ -227,11 +259,21 @@ class PaperGenerator(QWidget):
             self.generated_paper.extend(selected_judges)
             self.progress_bar.setValue(choice_count + judge_count)
             
+        if full_empty_count > 0:
+            selected_full_emptys = random.sample(full_empty_problems, full_empty_count)
+            self.generated_paper.extend(selected_full_emptys)
+            self.progress_bar.setValue(choice_count + judge_count + full_empty_count)
+        
+        if short_answer_count > 0:
+            selected_name_explains = random.sample(name_explain_problems, name_explain_count)
+            self.generated_paper.extend(selected_name_explains)
+            self.progress_bar.setValue(choice_count + judge_count + full_empty_count + name_explain_count)
+
         if short_answer_count > 0:
             selected_short_answers = random.sample(short_answer_problems, short_answer_count)
             self.generated_paper.extend(selected_short_answers)
-            self.progress_bar.setValue(choice_count + judge_count + short_answer_count)
-        
+            self.progress_bar.setValue(choice_count + judge_count + full_empty_count + name_explain_count + short_answer_count)
+
         # 随机排序
         if self.random_order.isChecked():
             random.shuffle(self.generated_paper)
@@ -287,7 +329,9 @@ class PaperGenerator(QWidget):
         # 按题型分组
         choice_questions = [q for q in self.generated_paper if q['typeid'] == 1]
         judge_questions = [q for q in self.generated_paper if q['typeid'] == 2]
-        short_answer_questions = [q for q in self.generated_paper if q['typeid'] == 3]
+        full_empty_questions = [q for q in self.generated_paper if q['typeid'] == 3]
+        name_explain_questions = [q for q in self.generated_paper if q['typeid'] == 4]
+        short_answer_questions = [q for q in self.generated_paper if q['typeid'] == 5]
         
         # 添加选择题
         if choice_questions:
@@ -325,10 +369,40 @@ class PaperGenerator(QWidget):
                 
                 html_content += '</div>'
             html_content += '</div>'
+
+        if full_empty_questions:
+            html_content += '<div class="section"><h2>三、填空题</h2>'
+            for i, question in enumerate(full_empty_questions, 1):
+                html_content += f'<div class="question">'
+                html_content += f'<div class="question-number">{i}. 题目ID {question["id"]}</div>'
+                html_content += f'<div class="stem">{html.escape(question["stem"])}</div>'
+                
+                if include_analysis:
+                    html_content += f'<div class="answer">答案: {html.escape(question["answer"])}</div>'
+                    if question['analysis']:
+                        html_content += f'<div class="analysis">解析: {html.escape(question["analysis"])}</div>'
+                
+                html_content += '</div>'
+            html_content += '</div>'
         
+        if name_explain_questions:
+            html_content += '<div class="section"><h2>四、名词解释</h2>'
+            for i, question in enumerate(name_explain_questions, 1):
+                html_content += f'<div class="question">'
+                html_content += f'<div class="question-number">{i}. 题目ID {question["id"]}</div>'
+                html_content += f'<div class="stem">{html.escape(question["stem"])}</div>'
+                
+                if include_analysis:
+                    html_content += f'<div class="answer">答案: {html.escape(question["answer"])}</div>'
+                    if question['analysis']:
+                        html_content += f'<div class="analysis">解析: {html.escape(question["analysis"])}</div>'
+                
+                html_content += '</div>'
+            html_content += '</div>'
+
         # 添加简答题
         if short_answer_questions:
-            html_content += '<div class="section"><h2>三、简答题</h2>'
+            html_content += '<div class="section"><h2>五、论述题</h2>'
             for i, question in enumerate(short_answer_questions, 1):
                 html_content += f'<div class="question">'
                 html_content += f'<div class="question-number">{i}. 题目ID {question["id"]}</div>'
@@ -808,7 +882,7 @@ class PracticeWidget(QWidget):
         # 控制区域
         control_layout = QHBoxLayout()
         
-        self.next_btn = QPushButton("下一题")
+        self.next_btn = QPushButton("刷新")
         self.next_btn.clicked.connect(self.next_question)
         control_layout.addWidget(self.next_btn)
         
@@ -819,6 +893,12 @@ class PracticeWidget(QWidget):
         self.show_btn = QPushButton("显示解析")
         self.show_btn.clicked.connect(self.show_answer)
         control_layout.addWidget(self.show_btn)
+       
+        id_layout = QHBoxLayout()
+        id_layout.addWidget(QLabel("题目ID:"))
+        self.id_edit = QLineEdit("")
+        id_layout.addWidget(self.id_edit)
+        control_layout.addLayout(id_layout)
         
         control_layout.addStretch()
         
@@ -869,7 +949,11 @@ class PracticeWidget(QWidget):
         chapter = self.chapter_combo.currentData()
         question_type = self.type_combo.currentData()
         
-        question = self.db_manager.get_random_question(bankid, chapter, question_type)
+        if self.id_edit.text():
+            question = self.db_manager.get_question(self.id_edit.text())
+            self.id_edit.setText('')
+        else:
+            question = self.db_manager.get_random_question(bankid, chapter, question_type)
         if question:
             self.question_widget.set_question(question)
         else:
@@ -893,7 +977,7 @@ class MainWindow(QMainWindow):
         
     def init_ui(self):
         self.setWindowTitle('刷题软件')
-        self.setGeometry(100, 100, 1000, 700)
+        self.setGeometry(100, 100, 800, 500)
         app.setStyleSheet("")
         
         # 设置样式
@@ -948,7 +1032,7 @@ class MainWindow(QMainWindow):
         
 if __name__ == '__main__':
     app = QApplication(sys.argv)
-    font = QFont("微软雅黑", 14)  # 你可以换成你喜欢的字体和字号
+    font = QFont("Dejavu Sans", 12)  # 你可以换成你喜欢的字体和字号
     app.setFont(font)
     window = MainWindow()
     window.show()
