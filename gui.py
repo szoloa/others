@@ -12,13 +12,6 @@ from Question import Questions
 from PyQt5.QtWebEngineWidgets import QWebEngineView  # 导入Web引擎组件
 from bs4 import BeautifulSoup as soup
 
-# 选项字母
-LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G']
-
-import sqlite3
-import json
-import sys
-import random
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
                              QHBoxLayout, QLabel, QLineEdit, QPushButton, QFrame,
                              QTextEdit, QRadioButton, QButtonGroup, QMessageBox,
@@ -38,6 +31,7 @@ class PaperGenerator(QWidget):
         super().__init__(parent)
         self.db_manager = db_manager
         self.generated_paper = []  # 存储生成的试卷题目
+        self.seed = 42
         self.init_ui()
         
     def init_ui(self):
@@ -53,7 +47,14 @@ class PaperGenerator(QWidget):
         self.title_edit = QLineEdit("模拟考试试卷")
         title_layout.addWidget(self.title_edit)
         settings_layout.addLayout(title_layout)
+
+        seed_layout = QHBoxLayout()
+        seed_layout.addWidget(QLabel("随机种子:"))
+        self.seed_edit = QLineEdit(str(self.seed))
+        seed_layout.addWidget(self.seed_edit)
+        settings_layout.addLayout(seed_layout)
         
+
         # 题目数量设置
         count_layout = QHBoxLayout()
         count_layout.addWidget(QLabel("选择题数量:"))
@@ -248,6 +249,7 @@ class PaperGenerator(QWidget):
             short_answer_count = len(short_answer_problems)
         
 
+        random.seed(int(self.seed_edit.text()))
         # 随机选择题目
         if choice_count > 0:
             selected_choices = random.sample(choice_problems, choice_count)
