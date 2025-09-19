@@ -349,9 +349,9 @@ class PaperGenerator(QWidget):
                 html_content += '</div>'
                 
                 if include_analysis:
-                    html_content += f'<div class="answer">答案: {html.escape(question["answer"])}</div>'
+                    html_content += f'<div class="answer">答案: {html.escape(LETTERS[int(question["answer"])])}</div>'
                     if question['analysis']:
-                        html_content += f'<div class="analysis">解析: {html.escape(question["analysis"])}</div>'
+                        html_content += f'<div class="analysis">解析: {html.escape(soup(question["analysis"], "lxml").text)}</div>'
                 
                 html_content += '</div>'
             html_content += '</div>'
@@ -365,9 +365,9 @@ class PaperGenerator(QWidget):
                 html_content += f'<div class="stem">{html.escape(question["stem"])}</div>'
                 
                 if include_analysis:
-                    html_content += f'<div class="answer">答案: {html.escape(question["answer"])}</div>'
+                    html_content += f'<div class="answer">答案: {html.escape(["错误","正确"][int(question["answer"])])}</div>'
                     if question['analysis']:
-                        html_content += f'<div class="analysis">解析: {html.escape(question["analysis"])}</div>'
+                        html_content += f'<div class="analysis">解析: {html.escape(soup(question["analysis"], "lxml").text)}</div>'
                 
                 html_content += '</div>'
             html_content += '</div>'
@@ -382,7 +382,7 @@ class PaperGenerator(QWidget):
                 if include_analysis:
                     html_content += f'<div class="answer">答案: {html.escape(question["answer"])}</div>'
                     if question['analysis']:
-                        html_content += f'<div class="analysis">解析: {html.escape(question["analysis"])}</div>'
+                        html_content += f'<div class="analysis">解析: {html.escape(soup(question["analysis"], "lxml").text)}</div>'
                 
                 html_content += '</div>'
             html_content += '</div>'
@@ -397,7 +397,7 @@ class PaperGenerator(QWidget):
                 if include_analysis:
                     html_content += f'<div class="answer">答案: {html.escape(question["answer"])}</div>'
                     if question['analysis']:
-                        html_content += f'<div class="analysis">解析: {html.escape(question["analysis"])}</div>'
+                        html_content += f'<div class="analysis">解析: {html.escape(soup(question["analysis"], "lxml").text)}</div>'
                 
                 html_content += '</div>'
             html_content += '</div>'
@@ -413,7 +413,7 @@ class PaperGenerator(QWidget):
                 if include_analysis:
                     html_content += f'<div class="answer">答案: {html.escape(question["answer"])}</div>'
                     if question['analysis']:
-                        html_content += f'<div class="analysis">解析: {html.escape(question["analysis"])}</div>'
+                        html_content += f'<div class="analysis">解析: {html.escape(soup(question["analysis"], "lxml").text)}</div>'
                 
                 html_content += '</div>'
             html_content += '</div>'
