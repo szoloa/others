@@ -41,12 +41,16 @@ if __name__ == '__main__':
     q = Question.Questions()
     for i in q.get_all_questions():
         if i['answer']:
-            if 'src' not in i['answer'] and '<p>' in i['answer']:
+            if "['<img border=" in i['answer']:
+                print(soup(eval(i['answer'])[0], 'lxml').img.get('src'))
                 # print(soup(i['analysis'], 'lxml').p.img.get('src'))
-                print(soup(i['answer'], 'lxml').text)
-                # result = ocr(soup(i['analysis'], 'lxml').p.img.get('src'))
-                # j_result = json.loads(result)
-                # ress = ''.join([i['words'] for i in j_result['words_result']])
-                q.update_question(id=i['id'], analysis=f"{ress}")
-                # print(ress)
-        
+                # print(soup(i['answer'], 'lxml').text)
+                result = ocr(soup(eval(i['answer'])[0], 'lxml').img.get('src'))
+                j_result = json.loads(result)
+                ress = ''.join([i['words'] for i in j_result['words_result']])
+                q.update_question(id=i['id'], answer=f'{ress}')
+                print(ress, i['id'])
+    # q = Question.Questions()
+    # for i in q.get_all_questions():
+    #     if i['options'] == []:
+    #         print(i)
