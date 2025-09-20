@@ -184,7 +184,6 @@ class PaperGenerator(QWidget):
         max_difficulty = self.max_difficulty.value()
         bankid = self.bank_combo.currentData()
         chapter = self.chapter_combo.currentData()
-        
         # 显示进度条
         self.progress_bar.setVisible(True)
         self.progress_bar.setRange(0, choice_count + judge_count + short_answer_count)
@@ -305,13 +304,16 @@ class PaperGenerator(QWidget):
         """生成HTML格式的试卷内容"""
         title = self.title_edit.text()
         include_analysis = self.include_analysis.isChecked()
-        
+        bankid = self.bank_combo.currentData()
+        chapter = self.chapter_combo.currentData()
+        bank = ['所有题库', '分子生物学', '普通生物学', '生物化学', '微生物学', '细胞生物学'][bankid if bankid else 0] 
+        #
         html_content = f"""
         <!DOCTYPE html>
         <html>
         <head>
             <meta charset="UTF-8">
-            <title>{html.escape(title)}</title>
+            <title>{title}</title>
             <style>
                 body {{ font-family: sans-serif; margin: 20px; }}
                 h1 {{ text-align: center; color: #2c3e50; }}
@@ -325,7 +327,7 @@ class PaperGenerator(QWidget):
             </style>
         </head>
         <body>
-            <h1>{html.escape(title)}</h1>
+            <h1>{html.escape(title)}-{bank}-{ "第" + str(chapter) if chapter else "所有"}章节-{self.seed_edit.text()}</h1>
         """
         
         # 按题型分组
