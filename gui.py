@@ -1,17 +1,11 @@
 import sqlite3
 import json
 import sys
-from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
-                             QHBoxLayout, QLabel, QLineEdit, QPushButton, QFrame,
-                             QTextEdit, QRadioButton, QButtonGroup, QMessageBox,
-                             QSpinBox, QComboBox, QTabWidget, QListWidget, QSplitter)
-from PyQt5.QtCore import Qt, QSize
-from PyQt5.QtGui import QFont, QPalette, QColor
 import random
 from Question import Questions
 from PyQt5.QtWebEngineWidgets import QWebEngineView  # 导入Web引擎组件
 from bs4 import BeautifulSoup as soup
-
+import errorbook
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
                              QHBoxLayout, QLabel, QLineEdit, QPushButton, QFrame,
                              QTextEdit, QRadioButton, QButtonGroup, QMessageBox,
@@ -504,6 +498,7 @@ class questionWidget(QWidget):
         super().__init__(parent)
         self.current_question = None
         self.user_answer = None
+        self.errorbook = errorbook.Error('errorbook.db')
         self.init_ui()
         
     def init_ui(self):
@@ -630,7 +625,13 @@ class questionWidget(QWidget):
         
         correct_answer = self.current_question['answer']
         is_correct = (self.user_answer.upper() == letter[int(correct_answer)])
-        
+        wquestion = self.current_question.copy()
+        wquestion['iscorrect'] = is_correct
+        wquestion["questionid"] = wquestion.pop("id")
+        wquestion["question_type"] = wquestion.pop("type")
+        wquestion["useranswer"] = self.user_answer
+        self.errorbook.add_question(**wquestion)
+
         if is_correct:
             return True, "回答正确！"
         else:
@@ -967,7 +968,7 @@ class PracticeWidget(QWidget):
         is_correct, message = self.question_widget.check_answer()
         if is_correct is not None:
             QMessageBox.information(self, "结果", message)
-    
+
     def show_answer(self):
         self.question_widget.show_answer()
 
