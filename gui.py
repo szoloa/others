@@ -16,6 +16,8 @@ from PyQt5.QtGui import QFont, QPalette, QColor, QTextDocument, QTextCursor
 from PyQt5.QtPrintSupport import QPrintDialog, QPrinter
 import html
 
+import ai
+
 # 选项字母
 LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G']
 
@@ -545,12 +547,13 @@ class questionWidget(QWidget):
         self.answer_label.setWordWrap(True)
         self.answer_label.hide()
         
-        self.analysis_webview = QWebEngineView()
-        self.analysis_webview.hide()
+        self.analysis_text = QTextEdit()
+        self.analysis_text.setReadOnly(True)
+        self.analysis_text.hide()
 
         
         layout.addWidget(self.answer_label)
-        layout.addWidget(self.analysis_webview)
+        layout.addWidget(self.analysis_text)
         
     def on_option_selected(self, button):
         print(button.text())
@@ -566,7 +569,7 @@ class questionWidget(QWidget):
         
         # 隐藏解析
         self.answer_label.hide()
-        self.analysis_webview.hide()
+        self.analysis_text.hide()
         
         # 设置题目类型
         question_type = question['typeid']
@@ -622,9 +625,13 @@ class questionWidget(QWidget):
             self.answer_label.show()
             
             if self.current_question['analysis']:
-                self.analysis_webview.setHtml(self.current_question['analysis'])
-                self.analysis_webview.show()
-    
+                self.analysis_text.setText(self.current_question['analysis'])
+                self.analysis_text.show()
+
+    def ask_ai(self):
+        self.analysis_text.setText(ai.ai(f"stem:{self.current_question['stem']}, options:{self.current_question['options']}, analysis:{self.current_question['analysis']}, answer:{self.current_question['answer']}"))
+        self.analysis_text.show()
+
     def check_answer(self):
         letter = ['A', 'B', 'C', 'D', 'E', 'F', 'G']
         if not self.current_question or self.user_answer is None:
@@ -907,7 +914,11 @@ class PracticeWidget(QWidget):
         self.show_btn = QPushButton("显示解析")
         self.show_btn.clicked.connect(self.show_answer)
         control_layout.addWidget(self.show_btn)
-       
+        
+        self.ai_btn = QPushButton("问问豆包")
+        self.ai_btn.clicked.connect(self.ask_ai)
+        control_layout.addWidget(self.ai_btn)
+
         id_layout = QHBoxLayout()
         id_layout.addWidget(QLabel("题目ID:"))
         self.id_edit = QLineEdit("")
@@ -982,6 +993,8 @@ class PracticeWidget(QWidget):
 
     def show_answer(self):
         self.question_widget.show_answer()
+    def ask_ai(self):
+        self.question_widget.ask_ai()
 
 
 class MainWindow(QMainWindow):
