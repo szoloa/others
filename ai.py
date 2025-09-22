@@ -12,8 +12,6 @@ def ai(content):
 
     client = Ark(api_key=doubao_api_key)
 
-    print(content)
-    
     response = client.chat.completions.create(
         model="doubao-1-5-pro-32k-250115",
         messages=[{"content":"帮我分析这道题的解析，输出使用纯文本的格式，不要使用markdown格式，回答简短，尽量不要超过200字","role":"system"},{"content":content,"role":"user"}],

@@ -629,7 +629,7 @@ class questionWidget(QWidget):
                 self.analysis_text.show()
 
     def ask_ai(self):
-        self.analysis_text.setText(ai.ai(f"stem:{self.current_question['stem']}, options:{self.current_question['options']}, analysis:{self.current_question['analysis']}, answer:{self.current_question['answer']}"))
+        self.analysis_text.append(ai.ai(f"stem:{self.current_question['stem']}, options:{self.current_question['options']}, analysis:{self.current_question['analysis']}, answer:{self.current_question['answer']}"))
         self.analysis_text.show()
 
     def check_answer(self):
