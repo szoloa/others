@@ -629,7 +629,7 @@ class questionWidget(QWidget):
                 self.analysis_text.show()
 
     def ask_ai(self):
-        self.analysis_text.append(ai.ai(f"stem:{self.current_question['stem']}, options:{self.current_question['options']}, analysis:{self.current_question['analysis']}, answer:{self.current_question['answer']}"))
+        self.analysis_text.append(ai.ai(f"stem:{self.current_question['stem']}, options:{self.current_question['options']}, analysis:{self.current_question['analysis']}, answer:{self.current_question['answer']}, my answer:{self.user_answer if self.user_answer else ''}"))
         self.analysis_text.show()
 
     def check_answer(self):
@@ -981,6 +981,7 @@ class PracticeWidget(QWidget):
             question = self.db_manager.get_random_question(bankid, chapter, question_type)
         if question:
             self.question_widget.set_question(question)
+            self.question_widget.analysis_text.setText('')
         else:
             QMessageBox.information(self, "提示", "没有找到符合条件的题目")
     
