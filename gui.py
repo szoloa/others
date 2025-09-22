@@ -526,6 +526,7 @@ class questionWidget(QWidget):
             option_layout.setContentsMargins(0, 0, 0, 0)
             
             radio = QRadioButton()
+            radio.setShortcut(LETTERS[i])
             self.options_group.addButton(radio, i)
             label = QLabel("")
             label.setWordWrap(True)
@@ -552,6 +553,7 @@ class questionWidget(QWidget):
         layout.addWidget(self.analysis_webview)
         
     def on_option_selected(self, button):
+        print(button.text())
         self.user_answer = button.text()[0]  # 获取选项字母
     
     def set_question(self, question):
@@ -569,7 +571,7 @@ class questionWidget(QWidget):
         # 设置题目类型
         question_type = question['typeid']
         
-        self.type_label.setText(f"题目ID: {question['id']} | 类型: {question['type']} | 难度: {question['difficulty']}")
+        self.type_label.setText(f"题目ID: {question['id']} | 类型: {question['type']} | 难度: {question['difficulty']} | 已答：{self.errorbook.get_all_num()} | 正确率：{self.errorbook.get_correct_num()/self.errorbook.get_all_num() if self.errorbook.get_all_num() else 0:.2%}")
         
         # 设置题目内容
         self.stem_text.setPlainText(question['stem'])
@@ -579,6 +581,7 @@ class questionWidget(QWidget):
         for i, (radio, label) in enumerate(self.option_widgets):
             if i < len(options):
                 radio.setText(LETTERS[i])
+                radio.setShortcut(LETTERS[i])
                 label.setText(options[i])
                 radio.show()
                 label.show()
@@ -589,7 +592,11 @@ class questionWidget(QWidget):
         # 判断题特殊处理
         if question_type == 2:  # 判断题
             self.option_widgets[0][1].setText("错误")
+            self.option_widgets[0][0].setText("A")
+            self.option_widgets[0][0].setShortcut("A")
             self.option_widgets[1][1].setText("正确")
+            self.option_widgets[1][0].setText("B")
+            self.option_widgets[1][0].setShortcut("B")
             self.option_widgets[0][0].show()
             self.option_widgets[1][1].show()
             self.option_widgets[0][1].show()
@@ -887,12 +894,14 @@ class PracticeWidget(QWidget):
         # 控制区域
         control_layout = QHBoxLayout()
         
-        self.next_btn = QPushButton("刷新")
+        self.next_btn = QPushButton("刷新(->)")
         self.next_btn.clicked.connect(self.next_question)
+        self.next_btn.setShortcut('Right')
         control_layout.addWidget(self.next_btn)
         
-        self.check_btn = QPushButton("检查答案")
+        self.check_btn = QPushButton("检查答案(Enter)")
         self.check_btn.clicked.connect(self.check_answer)
+        self.check_btn.setShortcut('Return')
         control_layout.addWidget(self.check_btn)
         
         self.show_btn = QPushButton("显示解析")
@@ -967,7 +976,9 @@ class PracticeWidget(QWidget):
     def check_answer(self):
         is_correct, message = self.question_widget.check_answer()
         if is_correct is not None:
-            QMessageBox.information(self, "结果", message)
+            reply = QMessageBox.question(self, "结果", message)
+            if reply == QMessageBox.Yes:
+                self.next_question()
 
     def show_answer(self):
         self.question_widget.show_answer()
@@ -988,24 +999,20 @@ class MainWindow(QMainWindow):
         # 设置样式
         self.setStyleSheet("""
             QMainWindow {
-                background-color: #f0f0f0;
             }
             QTabWidget::pane {
-                border: 1px solid #cccccc;
-                background-color: white;
+                border: 1px solid;
             }
             QTabBar::tab {
                 padding: 8px 16px;
-                background-color: #e0e0e0;
-                border: 1px solid #cccccc;
+                border: 1px solid;
             }
             QTabBar::tab:selected {
-                background-color: white;
                 border-bottom: none;
             }
             QGroupBox {
                 font-weight: bold;
-                border: 1px solid #cccccc;
+                border: 1px solid;
                 border-radius: 5px;
                 margin-top: 1ex;
             }

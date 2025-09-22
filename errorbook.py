@@ -36,4 +36,17 @@ class Error:
         )
         self.connect.commit()
         return self.cursor.lastrowid
+
+    def get_all_num(self):
+        self.cursor.execute('select questionid from errors')
+        return len(self.cursor.fetchall())
+    def get_correct_num(self):
+        self.cursor.execute('select questionid from errors where iscorrect = 1')
+        return len(self.cursor.fetchall())
+
+
+
+if __name__ == '__main__':
+    e = Error()
+    print(e.get_discorrect_num())
  
