@@ -318,7 +318,7 @@ class PaperGenerator(QWidget):
                 .options {{ margin-left: 20px; }}
                 .option {{ margin-bottom: 5px; }}
                 .answer {{ color: #27ae60; font-weight: bold; margin-top: 5px; }}
-                .analysis {{ color: #7f8c8d; font-style: italic; margin-top: 5px; }}
+                .analysis {{ color: #fffcfd; font-style: italic; margin-top: 5px; }}
                 .section {{ margin-top: 30px; }}
             </style>
         </head>
@@ -556,7 +556,6 @@ class questionWidget(QWidget):
         layout.addWidget(self.analysis_text)
         
     def on_option_selected(self, button):
-        print(button.text())
         self.user_answer = button.text()[0]  # 获取选项字母
     
     def set_question(self, question):
